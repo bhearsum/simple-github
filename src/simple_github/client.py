@@ -137,7 +137,17 @@ class SyncClient(Client):
 
         with session.request(method, url, **kwargs) as resp:
             if not resp.ok:
-                resp.raise_for_status()
+                try:
+                    resp.raise_for_status()
+                except ClientResponseError as cre:
+                    # "Unprocessable Entity", which will include some useful
+                    # information in the response body that will be lost if
+                    # we simply let the original exception bubble up. See:
+                    # https://docs.github.com/en/enterprise-server@3.12/rest/using-the-rest-api/troubleshooting-the-rest-api?apiVersion=2022-11-28#validation-failed
+                    if resp.status_code == 422:
+                        cre.message = resp.text
+
+                    raise cre
             try:
                 return resp.json()
             except JSONDecodeError:
@@ -280,7 +290,17 @@ class AsyncClient(Client):
 
         async with session.request(method, url, **kwargs) as resp:
             if not resp.ok:
-                resp.raise_for_status()
+                try:
+                    resp.raise_for_status()
+                except ClientResponseError as cre:
+                    # "Unprocessable Entity", which will include some useful
+                    # information in the response body that will be lost if
+                    # we simply let the original exception bubble up. See:
+                    # https://docs.github.com/en/enterprise-server@3.12/rest/using-the-rest-api/troubleshooting-the-rest-api?apiVersion=2022-11-28#validation-failed
+                    if resp.status_code == 422:
+                        cre.message = resp.text
+
+                    raise cre
             try:
                 return await resp.json()
             except ContentTypeError:
